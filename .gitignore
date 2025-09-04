@@ -1,0 +1,51 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+*.wasm
+*.o
+
+# Test binaries
+*_test
+
+# Project-local .vscode folder
+.vscode/
+
+# Local build artifacts
+/bin/
+/pkg/
+/build/
+
+# Dependency directories (if not using Go Modules' vendor directory)
+# For projects using Go Modules, the 'vendor' directory should generally be committed.
+# vendor/
+
+# Environment variables and configuration files
+.env
+.env.*
+*.local
+*.key
+
+# IDE specific files
+.idea/
+*.iml
+*.iws
+*.ipr
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+
+# Database files
+*.db
+*.sqlite3
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage
+*.out
+*.html

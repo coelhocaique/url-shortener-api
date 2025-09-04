@@ -29,11 +29,7 @@ func (h *URLHandler) CreateShortURL(c *gin.Context) {
 
 	response, err := h.urlService.CreateShortURL(&req)
 	if err != nil {
-		if err.Error() == "alias already exists" {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		HandleError(c, err)
 		return
 	}
 
@@ -46,11 +42,7 @@ func (h *URLHandler) RedirectToURL(c *gin.Context) {
 
 	originalURL, err := h.urlService.GetOriginalURL(shortCode)
 	if err != nil {
-		if err.Error() == "short code not found" || err.Error() == "short code has expired" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		HandleError(c, err)
 		return
 	}
 

@@ -1,9 +1,10 @@
 package services
 
 import (
-	"errors"
 	"net/url"
 	"strings"
+
+	"url-shortener-api/models"
 )
 
 // URLValidator handles URL validation operations
@@ -24,12 +25,12 @@ func (v *URLValidator) ValidateURL(urlStr string) (string, error) {
 	// Parse and validate URL
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
-		return "", errors.New("invalid URL format")
+		return "", models.ErrInvalidURLFormat
 	}
 
 	// Check if URL has a valid scheme and host
 	if parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return "", errors.New("invalid URL: missing scheme or host")
+		return "", models.ErrInvalidURLScheme
 	}
 
 	return urlStr, nil
@@ -43,7 +44,7 @@ func (v *URLValidator) ValidateAlias(alias string) error {
 
 	// Check length
 	if len(alias) < 3 || len(alias) > 20 {
-		return errors.New("alias must be between 3 and 20 characters")
+		return models.ErrInvalidAliasLength
 	}
 
 	// Check for valid characters (alphanumeric and hyphens only)
@@ -52,7 +53,7 @@ func (v *URLValidator) ValidateAlias(alias string) error {
 			 (char >= 'A' && char <= 'Z') || 
 			 (char >= '0' && char <= '9') || 
 			 char == '-') {
-			return errors.New("alias can only contain letters, numbers, and hyphens")
+			return models.ErrInvalidAliasChars
 		}
 	}
 

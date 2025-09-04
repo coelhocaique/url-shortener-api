@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"time"
 
 	"url-shortener-api/models"
@@ -39,10 +38,10 @@ func (s *URLServiceImpl) CreateShortURL(req *models.URLRequest) (*models.URLResp
 	// Generate short code
 	var shortCode string
 	if req.Alias != "" {
-		// Check if alias already exists
-		if s.storage.Exists(req.Alias) {
-			return nil, errors.New("alias already exists")
-		}
+			// Check if alias already exists
+	if s.storage.Exists(req.Alias) {
+		return nil, models.ErrAliasAlreadyExists
+	}
 		shortCode = req.Alias
 	} else {
 		shortCode = s.generator.Generate()
@@ -70,13 +69,13 @@ func (s *URLServiceImpl) GetOriginalURL(shortCode string) (string, error) {
 	// Check if mapping exists
 	mapping, exists := s.storage.Get(shortCode)
 	if !exists {
-		return "", errors.New("short code not found")
+		return "", models.ErrShortCodeNotFound
 	}
 
 	// Check if URL has expired
 	if s.storage.IsExpired(mapping) {
 		s.DeleteExpiredURL(shortCode)
-		return "", errors.New("short code has expired")
+		return "", models.ErrShortCodeExpired
 	}
 
 	return mapping.OriginalURL, nil

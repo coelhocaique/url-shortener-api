@@ -16,7 +16,11 @@ A modular URL shortener API built with Go and Gin framework, following clean arc
 url-shortener-api/
 ├── config/          # Configuration management
 ├── handlers/        # HTTP request handlers
+│   ├── error_handler.go     # Error handling utilities
+│   └── url_handler.go       # URL operation handlers
 ├── models/          # Data structures and interfaces
+│   ├── errors.go            # Custom error types with HTTP status codes
+│   └── url.go               # URL data structures
 ├── routes/          # Route definitions
 ├── services/        # Business logic
 │   ├── factory.go           # Service dependency injection
@@ -24,7 +28,15 @@ url-shortener-api/
 │   ├── url_service.go       # Main URL service
 │   ├── url_storage.go       # URL storage operations
 │   └── url_validator.go     # URL validation
+├── tests/           # Test suite
+│   ├── unit/                # Unit tests
+│   │   ├── services/        # Service layer tests
+│   │   ├── handlers/        # Handler layer tests
+│   │   └── models/          # Model layer tests
+│   └── integration/         # Integration tests
+│       └── api_integration_test.go
 ├── main.go         # Application entry point
+├── run_tests.sh    # Test runner script
 └── README.md       # This file
 ```
 
@@ -107,3 +119,86 @@ curl -I http://localhost:8080/urls/google
 - Short codes are 5 characters long when auto-generated
 - Expired URLs are automatically cleaned up when accessed
 - Custom aliases must be unique
+
+## Error Handling
+
+The API uses a centralized error handling system where each error type carries its own HTTP status code. This ensures consistent error responses across all endpoints.
+
+### Error Types and Status Codes
+
+| Error Type | HTTP Status | Description |
+|------------|-------------|-------------|
+| Invalid URL format | **400** | Bad Request |
+| Invalid alias format | **400** | Bad Request |
+| Alias already exists | **409** | Conflict |
+| Short code not found | **404** | Not Found |
+| Short code expired | **404** | Not Found |
+| Server errors | **500** | Internal Server Error |
+
+### Benefits of This Approach
+
+- **Centralized**: All error definitions are in one place
+- **Consistent**: Same error always returns same status code
+- **Maintainable**: Easy to add new error types
+- **Clean Handlers**: Handlers don't need to know about status codes
+
+## Testing
+
+### Running Tests
+
+The project includes comprehensive unit tests and integration tests for all components.
+
+#### Quick Test Run
+```bash
+chmod +x run_tests.sh
+./run_tests.sh
+```
+
+#### Individual Test Categories
+```bash
+# Unit tests for services
+go test -v ./tests/unit/services/...
+
+# Unit tests for handlers
+go test -v ./tests/unit/handlers/...
+
+# Unit tests for models
+go test -v ./tests/unit/models/...
+
+# Integration tests
+go test -v ./tests/integration/...
+
+# All tests with coverage
+go test -v -coverprofile=coverage.out ./...
+```
+
+### Test Structure
+
+- **Unit Tests**: Test individual components in isolation
+  - `services/`: Business logic tests
+  - `handlers/`: HTTP handler tests
+  - `models/`: Data structure and error tests
+
+- **Integration Tests**: Test complete API workflows
+  - Happy path scenarios
+  - Error handling scenarios
+  - Edge cases
+
+### Test Coverage
+
+The test suite covers:
+- ✅ URL validation (format, scheme, normalization)
+- ✅ Alias validation (length, characters, uniqueness)
+- ✅ Short code generation and storage
+- ✅ URL expiration handling
+- ✅ Error responses and HTTP status codes
+- ✅ Complete API workflows
+
+### Manual API Testing
+
+You can also test the API manually using the provided test script:
+
+```bash
+chmod +x test_errors.sh
+./test_errors.sh
+```
