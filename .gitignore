@@ -49,6 +49,3 @@ Thumbs.db
 # Coverage
 *.out
 *.html
-
-#Go
-*.sum
