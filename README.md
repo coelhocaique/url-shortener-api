@@ -42,6 +42,23 @@ url-shortener-api/
 
 ## Setup
 
+### Option 1: Using Docker (Recommended)
+
+1. Make sure you have Docker and Docker Compose installed
+2. Navigate to the project directory:
+   ```bash
+   cd url-shortener-api
+   ```
+
+3. Build and run with Docker Compose:
+   ```bash
+   docker-compose up --build
+   ```
+
+4. The API will be available at `http://localhost:8080`
+
+### Option 2: Local Development
+
 1. Make sure you have Go 1.21+ installed
 2. Navigate to the project directory:
    ```bash
@@ -59,6 +76,28 @@ url-shortener-api/
    ```
 
 The API will start on `http://localhost:8080` (or the port specified in the PORT environment variable)
+
+### Docker Commands
+
+```bash
+# Build the Docker image
+docker build -t url-shortener-api .
+
+# Run the container
+docker run -p 8080:8080 url-shortener-api
+
+# Run with custom port
+docker run -p 3000:8080 -e PORT=8080 url-shortener-api
+
+# Run in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the service
+docker-compose down
+```
 
 ## API Endpoints
 
@@ -202,3 +241,63 @@ You can also test the API manually using the provided test script:
 chmod +x test_errors.sh
 ./test_errors.sh
 ```
+
+## CI/CD Pipeline
+
+This project includes a comprehensive GitHub Actions CI/CD pipeline that runs on every push to the main branch and pull requests.
+
+### Pipeline Features
+
+- **Automated Testing**: Runs unit and integration tests with coverage reporting
+- **Docker Build**: Builds and pushes Docker images to Docker Hub
+- **Security Scanning**: Performs vulnerability scanning with Trivy
+- **Multi-stage Pipeline**: Separate jobs for testing, building, security scanning, and deployment
+
+### Pipeline Jobs
+
+1. **Test Job**
+   - Runs Go tests with race detection
+   - Generates coverage reports
+   - Uploads coverage artifacts
+
+2. **Build Job**
+   - Builds Docker image using multi-stage build
+   - Pushes to Docker Hub (on main branch)
+   - Uses Docker layer caching for faster builds
+
+3. **Security Scan Job**
+   - Scans Docker image for vulnerabilities
+   - Uploads results to GitHub Security tab
+   - Only runs on main branch pushes
+
+4. **Deploy Job**
+   - Deploys to production environment
+   - Protected by environment rules
+   - Only runs on main branch pushes
+
+### Required Secrets
+
+To enable the CI/CD pipeline, add these secrets to your GitHub repository:
+
+- `DOCKER_USERNAME`: Your Docker Hub username
+- `DOCKER_PASSWORD`: Your Docker Hub password or access token
+
+### Setting up Secrets
+
+1. Go to your GitHub repository
+2. Navigate to Settings → Secrets and variables → Actions
+3. Click "New repository secret"
+4. Add the required secrets
+
+### Pipeline Triggers
+
+- **Push to main**: Runs full pipeline including deployment
+- **Pull Request**: Runs testing and building (no deployment)
+- **Manual trigger**: Can be triggered manually from Actions tab
+
+### Monitoring
+
+- View pipeline status in the Actions tab
+- Coverage reports are uploaded as artifacts
+- Security scan results appear in the Security tab
+- Build logs are available for debugging
