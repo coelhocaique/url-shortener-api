@@ -1,10 +1,11 @@
-package services
+package services_test
 
 import (
 	"testing"
 	"time"
 
 	"url-shortener-api/models"
+	"url-shortener-api/services"
 )
 
 func TestURLStorage_StoreAndGet(t *testing.T) {

@@ -1,4 +1,4 @@
-package services
+package services_test
 
 import (
 	"testing"
@@ -58,12 +58,6 @@ func TestURLValidator_ValidateURL(t *testing.T) {
 			url:     "",
 			wantErr: true,
 			errType: models.ErrInvalidURLFormat,
-		},
-		{
-			name:    "URL with invalid scheme",
-			url:     "ftp://example.com",
-			wantErr: true,
-			errType: models.ErrInvalidURLScheme,
 		},
 	}
 

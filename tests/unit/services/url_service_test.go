@@ -1,10 +1,11 @@
-package services
+package services_test
 
 import (
 	"testing"
 	"time"
 
 	"url-shortener-api/models"
+	"url-shortener-api/services"
 )
 
 func TestURLServiceImpl_CreateShortURL(t *testing.T) {

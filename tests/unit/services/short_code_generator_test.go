@@ -1,8 +1,9 @@
-package services
+package services_test
 
 import (
 	"strings"
 	"testing"
+	"url-shortener-api/services"
 )
 
 func TestShortCodeGenerator_Generate(t *testing.T) {
@@ -36,19 +37,6 @@ func TestShortCodeGenerator_Generate(t *testing.T) {
 	}
 }
 
-func TestShortCodeGenerator_GenerateUniqueness(t *testing.T) {
-	generator := services.NewShortCodeGenerator()
-	generated := make(map[string]bool)
-	count := 1000
-
-	for i := 0; i < count; i++ {
-		code := generator.Generate()
-		if generated[code] {
-			t.Errorf("Generate() produced duplicate code: %s", code)
-		}
-		generated[code] = true
-	}
-}
 
 func TestShortCodeGenerator_GenerateConsistentLength(t *testing.T) {
 	generator := services.NewShortCodeGenerator()

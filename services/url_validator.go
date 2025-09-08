@@ -17,6 +17,11 @@ func NewURLValidator() *URLValidator {
 
 // ValidateURL checks if a URL is valid and formats it properly
 func (v *URLValidator) ValidateURL(urlStr string) (string, error) {
+	// Check for empty URL first
+	if strings.TrimSpace(urlStr) == "" {
+		return "", models.ErrInvalidURLFormat
+	}
+
 	// Add protocol if missing
 	if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
 		urlStr = "https://" + urlStr
