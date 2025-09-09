@@ -1,5 +1,7 @@
 # URL Shortener API
 
+[![CI/CD Pipeline](https://github.com/coelhocaique/url-shortener-api/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/coelhocaique/url-shortener-api/actions/workflows/ci-cd.yml)
+
 A modular URL shortener API built with Go and Gin framework, following clean architecture principles.
 
 ## Features
