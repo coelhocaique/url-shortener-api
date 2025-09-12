@@ -5,11 +5,13 @@ import (
 	"time"
 
 	"url-shortener-api/models"
-	"url-shortener-api/services"
+	"url-shortener-api/tests/testutils"
 )
 
 func TestURLServiceImpl_CreateShortURL(t *testing.T) {
-	service := services.NewURLService()
+	factory, cleanup := testutils.CreateTestServiceFactory(t)
+	defer cleanup()
+	service := factory.CreateURLService()
 
 	tests := []struct {
 		name        string
@@ -22,6 +24,7 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 			request: &models.URLRequest{
 				URL:          "https://www.example.com",
 				ExpirationMs: 3600000,
+				UserID:       "user123",
 			},
 			wantErr: false,
 		},
@@ -31,6 +34,7 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "test-alias",
 				ExpirationMs: 3600000,
+				UserID:       "user123",
 			},
 			wantErr: false,
 		},
@@ -39,6 +43,7 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 			request: &models.URLRequest{
 				URL:          "not a url",
 				ExpirationMs: 3600000,
+				UserID:       "user123",
 			},
 			wantErr:     true,
 			expectedErr: models.ErrInvalidURLFormat,
@@ -49,6 +54,7 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "ab",
 				ExpirationMs: 3600000,
+				UserID:       "user123",
 			},
 			wantErr:     true,
 			expectedErr: models.ErrInvalidAliasLength,
@@ -59,6 +65,7 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "invalid@alias",
 				ExpirationMs: 3600000,
+				UserID:       "user123",
 			},
 			wantErr:     true,
 			expectedErr: models.ErrInvalidAliasChars,
@@ -95,13 +102,16 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 }
 
 func TestURLServiceImpl_CreateShortURLWithAlias(t *testing.T) {
-	service := services.NewURLService()
+	factory, cleanup := testutils.CreateTestServiceFactory(t)
+	defer cleanup()
+	service := factory.CreateURLService()
 
 	// Create first URL with alias
 	request1 := &models.URLRequest{
 		URL:          "https://www.example1.com",
 		Alias:        "test-alias",
 		ExpirationMs: 3600000,
+		UserID:       "user123",
 	}
 
 	response1, err := service.CreateShortURL(request1)
@@ -118,6 +128,7 @@ func TestURLServiceImpl_CreateShortURLWithAlias(t *testing.T) {
 		URL:          "https://www.example2.com",
 		Alias:        "test-alias",
 		ExpirationMs: 3600000,
+		UserID:       "user456",
 	}
 
 	_, err = service.CreateShortURL(request2)
@@ -127,13 +138,16 @@ func TestURLServiceImpl_CreateShortURLWithAlias(t *testing.T) {
 }
 
 func TestURLServiceImpl_GetOriginalURL(t *testing.T) {
-	service := services.NewURLService()
+	factory, cleanup := testutils.CreateTestServiceFactory(t)
+	defer cleanup()
+	service := factory.CreateURLService()
 
 	// Create a URL first
 	request := &models.URLRequest{
 		URL:          "https://www.example.com",
 		Alias:        "test-get",
 		ExpirationMs: 3600000,
+		UserID:       "user123",
 	}
 
 	response, err := service.CreateShortURL(request)
@@ -153,7 +167,9 @@ func TestURLServiceImpl_GetOriginalURL(t *testing.T) {
 }
 
 func TestURLServiceImpl_GetOriginalURLNotFound(t *testing.T) {
-	service := services.NewURLService()
+	factory, cleanup := testutils.CreateTestServiceFactory(t)
+	defer cleanup()
+	service := factory.CreateURLService()
 
 	_, err := service.GetOriginalURL("nonexistent")
 	if err != models.ErrShortCodeNotFound {
@@ -162,13 +178,16 @@ func TestURLServiceImpl_GetOriginalURLNotFound(t *testing.T) {
 }
 
 func TestURLServiceImpl_GetOriginalURLExpired(t *testing.T) {
-	service := services.NewURLService()
+	factory, cleanup := testutils.CreateTestServiceFactory(t)
+	defer cleanup()
+	service := factory.CreateURLService()
 
 	// Create a URL with very short expiration
 	request := &models.URLRequest{
 		URL:          "https://www.example.com",
 		Alias:        "expired-test",
 		ExpirationMs: 1, // 1 millisecond
+		UserID:       "user123",
 	}
 
 	response, err := service.CreateShortURL(request)
@@ -187,12 +206,15 @@ func TestURLServiceImpl_GetOriginalURLExpired(t *testing.T) {
 }
 
 func TestURLServiceImpl_URLNormalization(t *testing.T) {
-	service := services.NewURLService()
+	factory, cleanup := testutils.CreateTestServiceFactory(t)
+	defer cleanup()
+	service := factory.CreateURLService()
 
 	// Test URL without protocol
 	request := &models.URLRequest{
 		URL:          "www.example.com",
 		ExpirationMs: 3600000,
+		UserID:       "user123",
 	}
 
 	response, err := service.CreateShortURL(request)

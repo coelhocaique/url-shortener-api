@@ -7,8 +7,10 @@ A modular URL shortener API built with Go and Gin framework, following clean arc
 - Create short URLs with optional custom aliases
 - Set expiration times for URLs
 - Automatic redirect to original URLs
-- In-memory storage (for development)
+- MongoDB persistence with automatic TTL cleanup
+- User-specific URL management
 - Modular architecture with separation of concerns
+- Comprehensive indexing for optimal performance
 
 ## Project Structure
 
@@ -50,27 +52,49 @@ url-shortener-api/
    cd url-shortener-api
    ```
 
-3. Build and run with Docker Compose:
+3. Build and run with Docker Compose (includes MongoDB):
    ```bash
    docker-compose up --build
    ```
 
 4. The API will be available at `http://localhost:8080`
+5. MongoDB will be available at `localhost:27017`
 
 ### Option 2: Local Development
 
 1. Make sure you have Go 1.21+ installed
-2. Navigate to the project directory:
+2. Install and start MongoDB locally:
+   ```bash
+   # On macOS with Homebrew
+   brew install mongodb-community
+   brew services start mongodb-community
+   
+   # On Ubuntu/Debian
+   sudo apt-get install mongodb
+   sudo systemctl start mongod
+   
+   # Or use Docker for MongoDB only
+   docker run -d -p 27017:27017 --name mongodb mongo:7.0
+   ```
+
+3. Navigate to the project directory:
    ```bash
    cd url-shortener-api
    ```
 
-3. Install dependencies:
+4. Install dependencies:
    ```bash
    go mod tidy
    ```
 
-4. Run the server:
+5. Set environment variables (optional):
+   ```bash
+   export MONGO_URI=mongodb://localhost:27017
+   export DATABASE_NAME=url_shortener
+   export PORT=8080
+   ```
+
+6. Run the server:
    ```bash
    go run main.go
    ```
@@ -110,7 +134,8 @@ Create a new short URL.
 {
    "url": "www.google.com", 
    "alias": "my-alias",
-   "expiration_ms": "1000000"
+   "expiration_ms": "1000000",
+   "user_id": "user123"
 }
 ```
 
@@ -125,6 +150,7 @@ Create a new short URL.
 - `url` (required): The original URL to shorten
 - `alias` (optional): Custom short code/alias
 - `expiration_ms` (optional): Expiration time in milliseconds
+- `user_id` (optional): User identifier for URL ownership
 
 ### GET /urls/{short_code}
 
@@ -143,7 +169,8 @@ curl -X POST http://localhost:8080/urls \
   -d '{
     "url": "https://www.google.com",
     "alias": "google",
-    "expiration_ms": 3600000
+    "expiration_ms": 3600000,
+    "user_id": "user123"
   }'
 ```
 
@@ -154,10 +181,38 @@ curl -I http://localhost:8080/urls/google
 
 ## Notes
 
-- Currently uses in-memory storage (data is lost on server restart)
+- Uses MongoDB for persistent storage with automatic TTL cleanup
 - Short codes are 5 characters long when auto-generated
-- Expired URLs are automatically cleaned up when accessed
-- Custom aliases must be unique
+- Expired URLs are automatically cleaned up by MongoDB TTL indexes
+- Custom aliases must be unique across all users
+- User-specific URL management with user_id field
+- Comprehensive indexing for optimal query performance
+
+## Data Model
+
+The application uses MongoDB to store URL mappings with the following document structure:
+
+```json
+{
+  "_id": "ObjectId",
+  "original_url": "https://www.google.com",
+  "short_url": "abc123",
+  "expiration_timestamp": "2024-12-31T23:59:59Z",
+  "alias": "google",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z",
+  "user_id": "user123"
+}
+```
+
+### Indexes
+
+The following indexes are automatically created for optimal performance:
+
+- **short_url**: Unique index for fast lookups
+- **alias**: Unique sparse index for custom aliases
+- **user_id**: Index for user-specific queries
+- **expiration_timestamp**: TTL index for automatic cleanup
 
 ## Error Handling
 
@@ -185,9 +240,15 @@ The API uses a centralized error handling system where each error type carries i
 
 ### Running Tests
 
-The project includes comprehensive unit tests and integration tests for all components.
+The project includes comprehensive unit tests and integration tests for all components. Tests now use MongoDB for persistence.
 
-#### Quick Test Run
+#### Quick Test Run (with automatic MongoDB setup)
+```bash
+chmod +x run_tests_mongodb.sh
+./run_tests_mongodb.sh
+```
+
+#### Manual Test Run (requires MongoDB to be running)
 ```bash
 chmod +x run_tests.sh
 ./run_tests.sh
@@ -195,6 +256,9 @@ chmod +x run_tests.sh
 
 #### Individual Test Categories
 ```bash
+# Make sure MongoDB is running first
+docker run -d -p 27017:27017 --name test-mongodb mongo:7.0
+
 # Unit tests for services
 go test -v ./tests/unit/services/...
 
@@ -209,29 +273,38 @@ go test -v ./tests/integration/...
 
 # All tests with coverage
 go test -v -coverprofile=coverage.out ./...
+
+# Cleanup
+docker stop test-mongodb && docker rm test-mongodb
 ```
 
 ### Test Structure
 
 - **Unit Tests**: Test individual components in isolation
-  - `services/`: Business logic tests
-  - `handlers/`: HTTP handler tests
+  - `services/`: Business logic tests with MongoDB integration
+  - `handlers/`: HTTP handler tests with mocked services
   - `models/`: Data structure and error tests
 
-- **Integration Tests**: Test complete API workflows
+- **Integration Tests**: Test complete API workflows with MongoDB
   - Happy path scenarios
   - Error handling scenarios
   - Edge cases
+  - Database persistence and retrieval
+
+- **Test Utilities**: MongoDB test setup and utilities
+  - `testutils/`: MongoDB connection and cleanup utilities
 
 ### Test Coverage
 
 The test suite covers:
 - ✅ URL validation (format, scheme, normalization)
 - ✅ Alias validation (length, characters, uniqueness)
-- ✅ Short code generation and storage
-- ✅ URL expiration handling
+- ✅ Short code generation and MongoDB storage
+- ✅ URL expiration handling with TTL indexes
 - ✅ Error responses and HTTP status codes
-- ✅ Complete API workflows
+- ✅ Complete API workflows with database persistence
+- ✅ MongoDB-specific operations (GetByAlias, GetByUserID)
+- ✅ Database indexing and performance
 
 ### Manual API Testing
 

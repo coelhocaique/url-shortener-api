@@ -8,18 +8,9 @@ import (
 
 // URLServiceImpl implements the URLService interface
 type URLServiceImpl struct {
-	storage    *URLStorage
-	generator  *ShortCodeGenerator
-	validator  *URLValidator
-}
-
-// NewURLService creates a new instance of URLServiceImpl
-func NewURLService() *URLServiceImpl {
-	return &URLServiceImpl{
-		storage:    NewURLStorage(),
-		generator:  NewShortCodeGenerator(),
-		validator:  NewURLValidator(),
-	}
+	storage   *URLStorage
+	generator *ShortCodeGenerator
+	validator *URLValidator
 }
 
 // CreateShortURL creates a new short URL mapping
@@ -38,25 +29,47 @@ func (s *URLServiceImpl) CreateShortURL(req *models.URLRequest) (*models.URLResp
 	// Generate short code
 	var shortCode string
 	if req.Alias != "" {
-			// Check if alias already exists
-	if s.storage.Exists(req.Alias) {
-		return nil, models.ErrAliasAlreadyExists
-	}
+		// Check if alias already exists
+		exists, err := s.storage.Exists(req.Alias)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, models.ErrAliasAlreadyExists
+		}
 		shortCode = req.Alias
 	} else {
-		shortCode = s.generator.Generate()
+		// Generate unique short code
+		for {
+			shortCode = s.generator.Generate()
+			exists, err := s.storage.Exists(shortCode)
+			if err != nil {
+				return nil, err
+			}
+			if !exists {
+				break
+			}
+		}
 	}
 
 	// Calculate expiration time
-	expirationTime := time.Now().Add(time.Duration(req.ExpirationMs) * time.Millisecond)
+	var expirationTime *time.Time
+	if req.ExpirationMs > 0 {
+		exp := time.Now().Add(time.Duration(req.ExpirationMs) * time.Millisecond)
+		expirationTime = &exp
+	}
 
 	// Store the mapping
 	mapping := models.URLMapping{
-		OriginalURL:    validatedURL,
-		Alias:          req.Alias,
-		ExpirationTime: expirationTime,
+		OriginalURL:         validatedURL,
+		Alias:               req.Alias,
+		ExpirationTimestamp: expirationTime,
+		UserID:              req.UserID,
 	}
-	s.storage.Store(shortCode, mapping)
+
+	if err := s.storage.Store(shortCode, mapping); err != nil {
+		return nil, err
+	}
 
 	// Return response
 	return &models.URLResponse{
@@ -67,7 +80,10 @@ func (s *URLServiceImpl) CreateShortURL(req *models.URLRequest) (*models.URLResp
 // GetOriginalURL retrieves the original URL for a given short code
 func (s *URLServiceImpl) GetOriginalURL(shortCode string) (string, error) {
 	// Check if mapping exists
-	mapping, exists := s.storage.Get(shortCode)
+	mapping, exists, err := s.storage.Get(shortCode)
+	if err != nil {
+		return "", err
+	}
 	if !exists {
 		return "", models.ErrShortCodeNotFound
 	}
@@ -83,5 +99,8 @@ func (s *URLServiceImpl) GetOriginalURL(shortCode string) (string, error) {
 
 // DeleteExpiredURL removes an expired URL mapping
 func (s *URLServiceImpl) DeleteExpiredURL(shortCode string) {
-	s.storage.Delete(shortCode)
+	if err := s.storage.Delete(shortCode); err != nil {
+		// Log error but don't return it as this is cleanup
+		// In a production app, you might want to use a proper logger
+	}
 }

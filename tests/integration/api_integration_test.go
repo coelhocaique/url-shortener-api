@@ -9,39 +9,42 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"url-shortener-api/models"
 	"url-shortener-api/routes"
-	"url-shortener-api/services"
+	"url-shortener-api/tests/testutils"
+
+	"github.com/gin-gonic/gin"
 )
 
-func setupTestServer() *gin.Engine {
+func setupTestServer(t *testing.T) (*gin.Engine, func()) {
 	gin.SetMode(gin.TestMode)
-	
-	// Initialize services
-	serviceFactory := services.NewServiceFactory()
-	urlService := serviceFactory.CreateURLService()
-	
+
+	// Initialize services with MongoDB
+	factory, cleanup := testutils.CreateTestServiceFactory(t)
+	urlService := factory.CreateURLService()
+
 	// Setup router
 	router := gin.Default()
 	routes.SetupRoutes(router, urlService)
-	
-	return router
+
+	return router, cleanup
 }
 
 func TestAPIIntegration_CreateAndRedirectURL(t *testing.T) {
-	router := setupTestServer()
+	router, cleanup := setupTestServer(t)
+	defer cleanup()
 
 	// Test 1: Create a short URL
 	createRequest := models.URLRequest{
 		URL:          "https://www.example.com",
 		ExpirationMs: 3600000,
+		UserID:       "user123",
 	}
-	
+
 	jsonBody, _ := json.Marshal(createRequest)
 	req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -73,19 +76,21 @@ func TestAPIIntegration_CreateAndRedirectURL(t *testing.T) {
 }
 
 func TestAPIIntegration_CreateURLWithCustomAlias(t *testing.T) {
-	router := setupTestServer()
+	router, cleanup := setupTestServer(t)
+	defer cleanup()
 
 	// Test: Create URL with custom alias
 	createRequest := models.URLRequest{
 		URL:          "https://www.github.com",
 		Alias:        "github",
 		ExpirationMs: 7200000,
+		UserID:       "user123",
 	}
-	
+
 	jsonBody, _ := json.Marshal(createRequest)
 	req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -116,7 +121,8 @@ func TestAPIIntegration_CreateURLWithCustomAlias(t *testing.T) {
 }
 
 func TestAPIIntegration_ErrorScenarios(t *testing.T) {
-	router := setupTestServer()
+	router, cleanup := setupTestServer(t)
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -129,6 +135,7 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 			requestBody: models.URLRequest{
 				URL:          "not a valid url",
 				ExpirationMs: 3600000,
+				UserID:       "user123",
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "invalid URL format",
@@ -139,6 +146,7 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "ab",
 				ExpirationMs: 3600000,
+				UserID:       "user123",
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "alias must be between 3 and 20 characters",
@@ -149,6 +157,7 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "invalid@alias",
 				ExpirationMs: 3600000,
+				UserID:       "user123",
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "alias can only contain letters, numbers, and hyphens",
@@ -160,7 +169,7 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 			jsonBody, _ := json.Marshal(tt.requestBody)
 			req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 			req.Header.Set("Content-Type", "application/json")
-			
+
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -178,19 +187,21 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 }
 
 func TestAPIIntegration_DuplicateAlias(t *testing.T) {
-	router := setupTestServer()
+	router, cleanup := setupTestServer(t)
+	defer cleanup()
 
 	// Create first URL with alias
 	createRequest1 := models.URLRequest{
 		URL:          "https://www.example1.com",
 		Alias:        "duplicate-test",
 		ExpirationMs: 3600000,
+		UserID:       "user123",
 	}
-	
+
 	jsonBody1, _ := json.Marshal(createRequest1)
 	req1, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody1))
 	req1.Header.Set("Content-Type", "application/json")
-	
+
 	w1 := httptest.NewRecorder()
 	router.ServeHTTP(w1, req1)
 
@@ -203,12 +214,13 @@ func TestAPIIntegration_DuplicateAlias(t *testing.T) {
 		URL:          "https://www.example2.com",
 		Alias:        "duplicate-test",
 		ExpirationMs: 3600000,
+		UserID:       "user456",
 	}
-	
+
 	jsonBody2, _ := json.Marshal(createRequest2)
 	req2, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody2))
 	req2.Header.Set("Content-Type", "application/json")
-	
+
 	w2 := httptest.NewRecorder()
 	router.ServeHTTP(w2, req2)
 
@@ -225,19 +237,21 @@ func TestAPIIntegration_DuplicateAlias(t *testing.T) {
 }
 
 func TestAPIIntegration_ExpiredURL(t *testing.T) {
-	router := setupTestServer()
+	router, cleanup := setupTestServer(t)
+	defer cleanup()
 
 	// Create URL with very short expiration
 	createRequest := models.URLRequest{
 		URL:          "https://www.example.com",
 		Alias:        "expire-test",
 		ExpirationMs: 1, // 1 millisecond
+		UserID:       "user123",
 	}
-	
+
 	jsonBody, _ := json.Marshal(createRequest)
 	req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -266,7 +280,8 @@ func TestAPIIntegration_ExpiredURL(t *testing.T) {
 }
 
 func TestAPIIntegration_NonExistentShortCode(t *testing.T) {
-	router := setupTestServer()
+	router, cleanup := setupTestServer(t)
+	defer cleanup()
 
 	// Try to access non-existent short code
 	req, _ := http.NewRequest("GET", "/urls/nonexistent", nil)
@@ -286,18 +301,20 @@ func TestAPIIntegration_NonExistentShortCode(t *testing.T) {
 }
 
 func TestAPIIntegration_URLNormalization(t *testing.T) {
-	router := setupTestServer()
+	router, cleanup := setupTestServer(t)
+	defer cleanup()
 
 	// Test URL without protocol
 	createRequest := models.URLRequest{
 		URL:          "www.example.com",
 		ExpirationMs: 3600000,
+		UserID:       "user123",
 	}
-	
+
 	jsonBody, _ := json.Marshal(createRequest)
 	req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

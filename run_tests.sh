@@ -3,6 +3,9 @@
 echo "🚀 Running URL Shortener API Tests"
 echo "=================================="
 echo ""
+echo "ℹ️  Note: These tests now use MongoDB for persistence."
+echo "   Make sure MongoDB is running or use run_tests_mongodb.sh for automatic setup."
+echo ""
 
 # Install dependencies
 echo "📦 Installing dependencies..."

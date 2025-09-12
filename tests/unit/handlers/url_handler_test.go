@@ -7,10 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"url-shortener-api/handlers"
+	"url-shortener-api/models"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
-	"url-shortener-api/models"
-	"url-shortener-api/handlers"
 )
 
 // MockURLService is a mock implementation of URLService
@@ -55,6 +56,7 @@ func TestURLHandler_CreateShortURL_Success(t *testing.T) {
 	requestBody := models.URLRequest{
 		URL:          "https://www.example.com",
 		ExpirationMs: 3600000,
+		UserID:       "user123",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -92,6 +94,7 @@ func TestURLHandler_CreateShortURL_ValidationError(t *testing.T) {
 	requestBody := models.URLRequest{
 		URL:          "invalid url",
 		ExpirationMs: 3600000,
+		UserID:       "user123",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -130,6 +133,7 @@ func TestURLHandler_CreateShortURL_AliasConflict(t *testing.T) {
 		URL:          "https://www.example.com",
 		Alias:        "existing-alias",
 		ExpirationMs: 3600000,
+		UserID:       "user123",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
