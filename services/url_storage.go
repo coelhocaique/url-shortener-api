@@ -23,7 +23,7 @@ func NewURLStorage(collection *mongo.Collection) *URLStorage {
 	}
 }
 
-// Store saves a URL mapping to MongoDB
+// Store saves a URL mapping to MongoDB (upserts if exists)
 func (s *URLStorage) Store(shortCode string, mapping models.URLMapping) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -34,8 +34,12 @@ func (s *URLStorage) Store(shortCode string, mapping models.URLMapping) error {
 	mapping.UpdatedAt = now
 	mapping.ShortURL = shortCode
 
-	// Insert the document
-	_, err := s.collection.InsertOne(ctx, mapping)
+	// Use upsert to insert or update the document
+	filter := bson.M{"short_url": shortCode}
+	update := bson.M{"$set": mapping}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := s.collection.UpdateOne(ctx, filter, update, opts)
 	return err
 }
 
@@ -135,6 +139,7 @@ func (s *URLStorage) Update(shortCode string, mapping models.URLMapping) error {
 	defer cancel()
 
 	mapping.UpdatedAt = time.Now()
+	mapping.ShortURL = shortCode
 	filter := bson.M{"short_url": shortCode}
 	update := bson.M{"$set": mapping}
 
@@ -150,7 +155,7 @@ func (s *URLStorage) CreateIndexes() error {
 	// Create index on short_url for fast lookups
 	shortURLIndex := mongo.IndexModel{
 		Keys:    bson.D{{Key: "short_url", Value: 1}},
-		Options: options.Index().SetUnique(true),
+		Options: options.Index(),
 	}
 
 	// Create index on alias for fast lookups

@@ -7,6 +7,8 @@ import (
 
 	"url-shortener-api/services"
 
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -27,17 +29,32 @@ func DefaultTestConfig() *TestMongoDBConfig {
 	}
 }
 
-// SetupTestMongoDB creates a test MongoDB connection and collection
+// SetupTestMongoDB creates a test MongoDB connection and collection using Docker
 func SetupTestMongoDB(t *testing.T, config *TestMongoDBConfig) (*mongo.Client, *mongo.Collection, func()) {
 	if config == nil {
 		config = DefaultTestConfig()
 	}
 
-	// Connect to MongoDB
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.URI))
+	// Start MongoDB container
+	mongoContainer, err := mongodb.RunContainer(ctx,
+		testcontainers.WithImage("mongo:7.0"),
+		mongodb.WithUsername("testuser"),
+		mongodb.WithPassword("testpass"),
+	)
+	if err != nil {
+		t.Fatalf("Failed to start MongoDB container: %v", err)
+	}
+
+	// Get connection string from container
+	connStr, err := mongoContainer.ConnectionString(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get MongoDB connection string: %v", err)
+	}
+
+	// Connect to MongoDB
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connStr))
 	if err != nil {
 		t.Fatalf("Failed to connect to test MongoDB: %v", err)
 	}
@@ -65,6 +82,11 @@ func SetupTestMongoDB(t *testing.T, config *TestMongoDBConfig) (*mongo.Client, *
 		defer cancel()
 
 		client.Disconnect(ctx)
+
+		// Terminate the container
+		if err := mongoContainer.Terminate(ctx); err != nil {
+			t.Logf("Failed to terminate MongoDB container: %v", err)
+		}
 	}
 
 	return client, collection, cleanup
