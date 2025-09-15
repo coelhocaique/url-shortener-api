@@ -16,6 +16,7 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 	tests := []struct {
 		name        string
 		request     *models.URLRequest
+		userID      string
 		wantErr     bool
 		expectedErr error
 	}{
@@ -24,8 +25,8 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 			request: &models.URLRequest{
 				URL:          "https://www.example.com",
 				ExpirationMs: 3600000,
-				UserID:       "user123",
 			},
+			userID:  "user123",
 			wantErr: false,
 		},
 		{
@@ -34,8 +35,8 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "test-alias",
 				ExpirationMs: 3600000,
-				UserID:       "user123",
 			},
+			userID:  "user123",
 			wantErr: false,
 		},
 		{
@@ -43,8 +44,8 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 			request: &models.URLRequest{
 				URL:          "not a url",
 				ExpirationMs: 3600000,
-				UserID:       "user123",
 			},
+			userID:      "user123",
 			wantErr:     true,
 			expectedErr: models.ErrInvalidURLFormat,
 		},
@@ -54,8 +55,8 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "ab",
 				ExpirationMs: 3600000,
-				UserID:       "user123",
 			},
+			userID:      "user123",
 			wantErr:     true,
 			expectedErr: models.ErrInvalidAliasLength,
 		},
@@ -65,8 +66,8 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "invalid@alias",
 				ExpirationMs: 3600000,
-				UserID:       "user123",
 			},
+			userID:      "user123",
 			wantErr:     true,
 			expectedErr: models.ErrInvalidAliasChars,
 		},
@@ -74,7 +75,7 @@ func TestURLServiceImpl_CreateShortURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			response, err := service.CreateShortURL(tt.request)
+			response, err := service.CreateShortURL(tt.request, tt.userID)
 
 			if tt.wantErr {
 				if err == nil {
@@ -111,10 +112,9 @@ func TestURLServiceImpl_CreateShortURLWithAlias(t *testing.T) {
 		URL:          "https://www.example1.com",
 		Alias:        "test-alias",
 		ExpirationMs: 3600000,
-		UserID:       "user123",
 	}
 
-	response1, err := service.CreateShortURL(request1)
+	response1, err := service.CreateShortURL(request1, "user123")
 	if err != nil {
 		t.Fatalf("Failed to create first URL: %v", err)
 	}
@@ -128,10 +128,9 @@ func TestURLServiceImpl_CreateShortURLWithAlias(t *testing.T) {
 		URL:          "https://www.example2.com",
 		Alias:        "test-alias",
 		ExpirationMs: 3600000,
-		UserID:       "user456",
 	}
 
-	_, err = service.CreateShortURL(request2)
+	_, err = service.CreateShortURL(request2, "user456")
 	if err != models.ErrAliasAlreadyExists {
 		t.Errorf("CreateShortURL() error = %v, want %v", err, models.ErrAliasAlreadyExists)
 	}
@@ -147,10 +146,9 @@ func TestURLServiceImpl_GetOriginalURL(t *testing.T) {
 		URL:          "https://www.example.com",
 		Alias:        "test-get",
 		ExpirationMs: 3600000,
-		UserID:       "user123",
 	}
 
-	response, err := service.CreateShortURL(request)
+	response, err := service.CreateShortURL(request, "user123")
 	if err != nil {
 		t.Fatalf("Failed to create URL: %v", err)
 	}
@@ -187,10 +185,9 @@ func TestURLServiceImpl_GetOriginalURLExpired(t *testing.T) {
 		URL:          "https://www.example.com",
 		Alias:        "expired-test",
 		ExpirationMs: 1, // 1 millisecond
-		UserID:       "user123",
 	}
 
-	response, err := service.CreateShortURL(request)
+	response, err := service.CreateShortURL(request, "user123")
 	if err != nil {
 		t.Fatalf("Failed to create URL: %v", err)
 	}
@@ -214,10 +211,9 @@ func TestURLServiceImpl_URLNormalization(t *testing.T) {
 	request := &models.URLRequest{
 		URL:          "www.example.com",
 		ExpirationMs: 3600000,
-		UserID:       "user123",
 	}
 
-	response, err := service.CreateShortURL(request)
+	response, err := service.CreateShortURL(request, "user123")
 	if err != nil {
 		t.Fatalf("Failed to create URL: %v", err)
 	}

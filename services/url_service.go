@@ -14,7 +14,7 @@ type URLServiceImpl struct {
 }
 
 // CreateShortURL creates a new short URL mapping
-func (s *URLServiceImpl) CreateShortURL(req *models.URLRequest) (*models.URLResponse, error) {
+func (s *URLServiceImpl) CreateShortURL(req *models.URLRequest, userID string) (*models.URLResponse, error) {
 	// Validate URL
 	validatedURL, err := s.validator.ValidateURL(req.URL)
 	if err != nil {
@@ -64,7 +64,7 @@ func (s *URLServiceImpl) CreateShortURL(req *models.URLRequest) (*models.URLResp
 		OriginalURL:         validatedURL,
 		Alias:               req.Alias,
 		ExpirationTimestamp: expirationTime,
-		UserID:              req.UserID,
+		UserID:              userID,
 	}
 
 	if err := s.storage.Store(shortCode, mapping); err != nil {

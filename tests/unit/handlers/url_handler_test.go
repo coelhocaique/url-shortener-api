@@ -19,8 +19,8 @@ type MockURLService struct {
 	mock.Mock
 }
 
-func (m *MockURLService) CreateShortURL(req *models.URLRequest) (*models.URLResponse, error) {
-	args := m.Called(req)
+func (m *MockURLService) CreateShortURL(req *models.URLRequest, userID string) (*models.URLResponse, error) {
+	args := m.Called(req, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -46,17 +46,22 @@ func TestURLHandler_CreateShortURL_Success(t *testing.T) {
 	mockService := new(MockURLService)
 	handler := handlers.NewURLHandler(mockService)
 	router := setupTestRouter()
+
+	// Add middleware to set user_id in context
+	router.Use(func(c *gin.Context) {
+		c.Set("user_id", "user123")
+		c.Next()
+	})
 	router.POST("/urls", handler.CreateShortURL)
 
 	// Mock service response
 	expectedResponse := &models.URLResponse{ShortCode: "abc123"}
-	mockService.On("CreateShortURL", mock.AnythingOfType("*models.URLRequest")).Return(expectedResponse, nil)
+	mockService.On("CreateShortURL", mock.AnythingOfType("*models.URLRequest"), "user123").Return(expectedResponse, nil)
 
 	// Create request
 	requestBody := models.URLRequest{
 		URL:          "https://www.example.com",
 		ExpirationMs: 3600000,
-		UserID:       "user123",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -85,16 +90,21 @@ func TestURLHandler_CreateShortURL_ValidationError(t *testing.T) {
 	mockService := new(MockURLService)
 	handler := handlers.NewURLHandler(mockService)
 	router := setupTestRouter()
+
+	// Add middleware to set user_id in context
+	router.Use(func(c *gin.Context) {
+		c.Set("user_id", "user123")
+		c.Next()
+	})
 	router.POST("/urls", handler.CreateShortURL)
 
 	// Mock service error
-	mockService.On("CreateShortURL", mock.AnythingOfType("*models.URLRequest")).Return(nil, models.ErrInvalidURLFormat)
+	mockService.On("CreateShortURL", mock.AnythingOfType("*models.URLRequest"), "user123").Return(nil, models.ErrInvalidURLFormat)
 
 	// Create request
 	requestBody := models.URLRequest{
 		URL:          "invalid url",
 		ExpirationMs: 3600000,
-		UserID:       "user123",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -123,17 +133,22 @@ func TestURLHandler_CreateShortURL_AliasConflict(t *testing.T) {
 	mockService := new(MockURLService)
 	handler := handlers.NewURLHandler(mockService)
 	router := setupTestRouter()
+
+	// Add middleware to set user_id in context
+	router.Use(func(c *gin.Context) {
+		c.Set("user_id", "user123")
+		c.Next()
+	})
 	router.POST("/urls", handler.CreateShortURL)
 
 	// Mock service error
-	mockService.On("CreateShortURL", mock.AnythingOfType("*models.URLRequest")).Return(nil, models.ErrAliasAlreadyExists)
+	mockService.On("CreateShortURL", mock.AnythingOfType("*models.URLRequest"), "user123").Return(nil, models.ErrAliasAlreadyExists)
 
 	// Create request
 	requestBody := models.URLRequest{
 		URL:          "https://www.example.com",
 		Alias:        "existing-alias",
 		ExpirationMs: 3600000,
-		UserID:       "user123",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -162,6 +177,12 @@ func TestURLHandler_RedirectToURL_Success(t *testing.T) {
 	mockService := new(MockURLService)
 	handler := handlers.NewURLHandler(mockService)
 	router := setupTestRouter()
+
+	// Add middleware to set user_id in context
+	router.Use(func(c *gin.Context) {
+		c.Set("user_id", "user123")
+		c.Next()
+	})
 	router.GET("/urls/:short_code", handler.RedirectToURL)
 
 	// Mock service response
@@ -190,6 +211,12 @@ func TestURLHandler_RedirectToURL_NotFound(t *testing.T) {
 	mockService := new(MockURLService)
 	handler := handlers.NewURLHandler(mockService)
 	router := setupTestRouter()
+
+	// Add middleware to set user_id in context
+	router.Use(func(c *gin.Context) {
+		c.Set("user_id", "user123")
+		c.Next()
+	})
 	router.GET("/urls/:short_code", handler.RedirectToURL)
 
 	// Mock service error
@@ -219,6 +246,12 @@ func TestURLHandler_RedirectToURL_Expired(t *testing.T) {
 	mockService := new(MockURLService)
 	handler := handlers.NewURLHandler(mockService)
 	router := setupTestRouter()
+
+	// Add middleware to set user_id in context
+	router.Use(func(c *gin.Context) {
+		c.Set("user_id", "user123")
+		c.Next()
+	})
 	router.GET("/urls/:short_code", handler.RedirectToURL)
 
 	// Mock service error

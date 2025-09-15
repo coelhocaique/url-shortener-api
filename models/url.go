@@ -11,7 +11,6 @@ type URLRequest struct {
 	URL          string `json:"url" binding:"required"`
 	Alias        string `json:"alias"`
 	ExpirationMs int64  `json:"expiration_ms"`
-	UserID       string `json:"user_id"`
 }
 
 // URLResponse represents the response for creating a short URL
@@ -33,7 +32,7 @@ type URLMapping struct {
 
 // URLService interface defines the contract for URL operations
 type URLService interface {
-	CreateShortURL(req *URLRequest) (*URLResponse, error)
+	CreateShortURL(req *URLRequest, userID string) (*URLResponse, error)
 	GetOriginalURL(shortCode string) (string, error)
 	DeleteExpiredURL(shortCode string)
 }

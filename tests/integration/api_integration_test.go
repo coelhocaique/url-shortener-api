@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"url-shortener-api/middleware"
 	"url-shortener-api/models"
 	"url-shortener-api/routes"
 	"url-shortener-api/tests/testutils"
@@ -30,20 +31,33 @@ func setupTestServer(t *testing.T) (*gin.Engine, func()) {
 	return router, cleanup
 }
 
+// generateTestToken generates a JWT token for testing
+func generateTestToken(t *testing.T, userID string) string {
+	// Import the middleware package to use GenerateJWT
+	token, err := middleware.GenerateJWT(userID)
+	if err != nil {
+		t.Fatalf("Failed to generate JWT token: %v", err)
+	}
+	return token
+}
+
 func TestAPIIntegration_CreateAndRedirectURL(t *testing.T) {
 	router, cleanup := setupTestServer(t)
 	defer cleanup()
+
+	// Generate JWT token for testing
+	token := generateTestToken(t, "user123")
 
 	// Test 1: Create a short URL
 	createRequest := models.URLRequest{
 		URL:          "https://www.example.com",
 		ExpirationMs: 3600000,
-		UserID:       "user123",
 	}
 
 	jsonBody, _ := json.Marshal(createRequest)
 	req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -61,6 +75,7 @@ func TestAPIIntegration_CreateAndRedirectURL(t *testing.T) {
 
 	// Test 2: Redirect to the created URL
 	redirectReq, _ := http.NewRequest("GET", fmt.Sprintf("/urls/%s", response.ShortCode), nil)
+	redirectReq.Header.Set("Authorization", "Bearer "+token)
 	redirectW := httptest.NewRecorder()
 	router.ServeHTTP(redirectW, redirectReq)
 
@@ -79,17 +94,20 @@ func TestAPIIntegration_CreateURLWithCustomAlias(t *testing.T) {
 	router, cleanup := setupTestServer(t)
 	defer cleanup()
 
+	// Generate JWT token for testing
+	token := generateTestToken(t, "user123")
+
 	// Test: Create URL with custom alias
 	createRequest := models.URLRequest{
 		URL:          "https://www.github.com",
 		Alias:        "github",
 		ExpirationMs: 7200000,
-		UserID:       "user123",
 	}
 
 	jsonBody, _ := json.Marshal(createRequest)
 	req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -107,6 +125,7 @@ func TestAPIIntegration_CreateURLWithCustomAlias(t *testing.T) {
 
 	// Test redirect
 	redirectReq, _ := http.NewRequest("GET", "/urls/github", nil)
+	redirectReq.Header.Set("Authorization", "Bearer "+token)
 	redirectW := httptest.NewRecorder()
 	router.ServeHTTP(redirectW, redirectReq)
 
@@ -124,6 +143,9 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 	router, cleanup := setupTestServer(t)
 	defer cleanup()
 
+	// Generate JWT token for testing
+	token := generateTestToken(t, "user123")
+
 	tests := []struct {
 		name           string
 		requestBody    models.URLRequest
@@ -135,7 +157,6 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 			requestBody: models.URLRequest{
 				URL:          "not a valid url",
 				ExpirationMs: 3600000,
-				UserID:       "user123",
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "invalid URL format",
@@ -146,7 +167,6 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "ab",
 				ExpirationMs: 3600000,
-				UserID:       "user123",
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "alias must be between 3 and 20 characters",
@@ -157,7 +177,6 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 				URL:          "https://www.example.com",
 				Alias:        "invalid@alias",
 				ExpirationMs: 3600000,
-				UserID:       "user123",
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "alias can only contain letters, numbers, and hyphens",
@@ -169,6 +188,7 @@ func TestAPIIntegration_ErrorScenarios(t *testing.T) {
 			jsonBody, _ := json.Marshal(tt.requestBody)
 			req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+token)
 
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
@@ -190,17 +210,20 @@ func TestAPIIntegration_DuplicateAlias(t *testing.T) {
 	router, cleanup := setupTestServer(t)
 	defer cleanup()
 
+	// Generate JWT token for testing
+	token := generateTestToken(t, "user123")
+
 	// Create first URL with alias
 	createRequest1 := models.URLRequest{
 		URL:          "https://www.example1.com",
 		Alias:        "duplicate-test",
 		ExpirationMs: 3600000,
-		UserID:       "user123",
 	}
 
 	jsonBody1, _ := json.Marshal(createRequest1)
 	req1, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody1))
 	req1.Header.Set("Content-Type", "application/json")
+	req1.Header.Set("Authorization", "Bearer "+token)
 
 	w1 := httptest.NewRecorder()
 	router.ServeHTTP(w1, req1)
@@ -214,12 +237,12 @@ func TestAPIIntegration_DuplicateAlias(t *testing.T) {
 		URL:          "https://www.example2.com",
 		Alias:        "duplicate-test",
 		ExpirationMs: 3600000,
-		UserID:       "user456",
 	}
 
 	jsonBody2, _ := json.Marshal(createRequest2)
 	req2, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody2))
 	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+token)
 
 	w2 := httptest.NewRecorder()
 	router.ServeHTTP(w2, req2)
@@ -240,17 +263,20 @@ func TestAPIIntegration_ExpiredURL(t *testing.T) {
 	router, cleanup := setupTestServer(t)
 	defer cleanup()
 
+	// Generate JWT token for testing
+	token := generateTestToken(t, "user123")
+
 	// Create URL with very short expiration
 	createRequest := models.URLRequest{
 		URL:          "https://www.example.com",
 		Alias:        "expire-test",
 		ExpirationMs: 1, // 1 millisecond
-		UserID:       "user123",
 	}
 
 	jsonBody, _ := json.Marshal(createRequest)
 	req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -264,6 +290,7 @@ func TestAPIIntegration_ExpiredURL(t *testing.T) {
 
 	// Try to access expired URL
 	redirectReq, _ := http.NewRequest("GET", "/urls/expire-test", nil)
+	redirectReq.Header.Set("Authorization", "Bearer "+token)
 	redirectW := httptest.NewRecorder()
 	router.ServeHTTP(redirectW, redirectReq)
 
@@ -283,8 +310,12 @@ func TestAPIIntegration_NonExistentShortCode(t *testing.T) {
 	router, cleanup := setupTestServer(t)
 	defer cleanup()
 
+	// Generate JWT token for testing
+	token := generateTestToken(t, "user123")
+
 	// Try to access non-existent short code
 	req, _ := http.NewRequest("GET", "/urls/nonexistent", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -304,16 +335,19 @@ func TestAPIIntegration_URLNormalization(t *testing.T) {
 	router, cleanup := setupTestServer(t)
 	defer cleanup()
 
+	// Generate JWT token for testing
+	token := generateTestToken(t, "user123")
+
 	// Test URL without protocol
 	createRequest := models.URLRequest{
 		URL:          "www.example.com",
 		ExpirationMs: 3600000,
-		UserID:       "user123",
 	}
 
 	jsonBody, _ := json.Marshal(createRequest)
 	req, _ := http.NewRequest("POST", "/urls", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -330,6 +364,7 @@ func TestAPIIntegration_URLNormalization(t *testing.T) {
 
 	// Test redirect to verify URL was normalized
 	redirectReq, _ := http.NewRequest("GET", fmt.Sprintf("/urls/%s", response.ShortCode), nil)
+	redirectReq.Header.Set("Authorization", "Bearer "+token)
 	redirectW := httptest.NewRecorder()
 	router.ServeHTTP(redirectW, redirectReq)
 

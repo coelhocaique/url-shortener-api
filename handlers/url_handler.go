@@ -3,8 +3,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"url-shortener-api/models"
+
+	"github.com/gin-gonic/gin"
 )
 
 // URLHandler handles HTTP requests for URL operations
@@ -27,7 +28,20 @@ func (h *URLHandler) CreateShortURL(c *gin.Context) {
 		return
 	}
 
-	response, err := h.urlService.CreateShortURL(&req)
+	// Get user ID from JWT context
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	userIDStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	response, err := h.urlService.CreateShortURL(&req, userIDStr)
 	if err != nil {
 		HandleError(c, err)
 		return
