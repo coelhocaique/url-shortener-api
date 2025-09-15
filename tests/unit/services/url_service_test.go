@@ -154,7 +154,7 @@ func TestURLServiceImpl_GetOriginalURL(t *testing.T) {
 	}
 
 	// Test getting the URL
-	originalURL, err := service.GetOriginalURL(response.ShortCode)
+	originalURL, err := service.GetOriginalURL(response.ShortCode, true)
 	if err != nil {
 		t.Errorf("GetOriginalURL() error = %v", err)
 	}
@@ -169,7 +169,7 @@ func TestURLServiceImpl_GetOriginalURLNotFound(t *testing.T) {
 	defer cleanup()
 	service := factory.CreateURLService()
 
-	_, err := service.GetOriginalURL("nonexistent")
+	_, err := service.GetOriginalURL("nonexistent", true)
 	if err != models.ErrShortCodeNotFound {
 		t.Errorf("GetOriginalURL() error = %v, want %v", err, models.ErrShortCodeNotFound)
 	}
@@ -196,7 +196,7 @@ func TestURLServiceImpl_GetOriginalURLExpired(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Try to get the expired URL
-	_, err = service.GetOriginalURL(response.ShortCode)
+	_, err = service.GetOriginalURL(response.ShortCode, true)
 	if err != models.ErrShortCodeExpired {
 		t.Errorf("GetOriginalURL() error = %v, want %v", err, models.ErrShortCodeExpired)
 	}
@@ -219,7 +219,7 @@ func TestURLServiceImpl_URLNormalization(t *testing.T) {
 	}
 
 	// Get the URL and verify it was normalized
-	originalURL, err := service.GetOriginalURL(response.ShortCode)
+	originalURL, err := service.GetOriginalURL(response.ShortCode, true)
 	if err != nil {
 		t.Errorf("GetOriginalURL() error = %v", err)
 	}

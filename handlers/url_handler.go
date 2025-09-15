@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"url-shortener-api/models"
 
@@ -54,7 +55,15 @@ func (h *URLHandler) CreateShortURL(c *gin.Context) {
 func (h *URLHandler) RedirectToURL(c *gin.Context) {
 	shortCode := c.Param("short_code")
 
-	originalURL, err := h.urlService.GetOriginalURL(shortCode)
+	// Parse use_cache query parameter (default: true)
+	useCache := true
+	if useCacheStr := c.Query("use_cache"); useCacheStr != "" {
+		if parsed, err := strconv.ParseBool(useCacheStr); err == nil {
+			useCache = parsed
+		}
+	}
+
+	originalURL, err := h.urlService.GetOriginalURL(shortCode, useCache)
 	if err != nil {
 		HandleError(c, err)
 		return

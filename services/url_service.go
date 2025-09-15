@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"url-shortener-api/models"
@@ -11,6 +13,7 @@ type URLServiceImpl struct {
 	storage   *URLStorage
 	generator *ShortCodeGenerator
 	validator *URLValidator
+	cache     *CacheService
 }
 
 // CreateShortURL creates a new short URL mapping
@@ -39,17 +42,12 @@ func (s *URLServiceImpl) CreateShortURL(req *models.URLRequest, userID string) (
 		}
 		shortCode = req.Alias
 	} else {
-		// Generate unique short code
-		for {
-			shortCode = s.generator.Generate()
-			exists, err := s.storage.Exists(shortCode)
-			if err != nil {
-				return nil, err
-			}
-			if !exists {
-				break
-			}
+		// Generate unique short code using distributed counter
+		generatedCode, err := s.generator.Generate()
+		if err != nil {
+			return nil, err
 		}
+		shortCode = generatedCode
 	}
 
 	// Calculate expiration time
@@ -71,6 +69,24 @@ func (s *URLServiceImpl) CreateShortURL(req *models.URLRequest, userID string) (
 		return nil, err
 	}
 
+	// Write through to cache
+	ctx := context.Background()
+	cacheKey := fmt.Sprintf("url:%s", shortCode)
+	cacheValue := mapping.OriginalURL
+
+	// Calculate TTL for cache
+	var ttl time.Duration
+	if expirationTime != nil {
+		ttl = time.Until(*expirationTime)
+		if ttl > 0 {
+			// Only cache if not already expired
+			s.cache.Set(ctx, cacheKey, cacheValue, ttl)
+		}
+	} else {
+		// No expiration, cache for a long time (24 hours)
+		s.cache.Set(ctx, cacheKey, cacheValue, 24*time.Hour)
+	}
+
 	// Return response
 	return &models.URLResponse{
 		ShortCode: shortCode,
@@ -78,9 +94,23 @@ func (s *URLServiceImpl) CreateShortURL(req *models.URLRequest, userID string) (
 }
 
 // GetOriginalURL retrieves the original URL for a given short code
-func (s *URLServiceImpl) GetOriginalURL(shortCode string) (string, error) {
-	// Check if mapping exists
+func (s *URLServiceImpl) GetOriginalURL(shortCode string, useCache bool) (string, error) {
+	ctx := context.Background()
+	cacheKey := fmt.Sprintf("url:%s", shortCode)
+
+	// If cache is enabled, try to get from cache first
+	if useCache {
+		fmt.Println("Getting from cache")
+		cachedURL, err := s.cache.Get(ctx, cacheKey)
+		if err == nil {
+			// Cache hit, return the URL
+			return cachedURL, nil
+		}
+	}
+
+	// Cache miss or cache disabled, fallback to MongoDB
 	mapping, exists, err := s.storage.Get(shortCode)
+	fmt.Println("Error getting from MongoDB")
 	if err != nil {
 		return "", err
 	}
@@ -94,11 +124,32 @@ func (s *URLServiceImpl) GetOriginalURL(shortCode string) (string, error) {
 		return "", models.ErrShortCodeExpired
 	}
 
+	// If cache is enabled, cache the result for future requests
+	if useCache {
+		var ttl time.Duration
+		if mapping.ExpirationTimestamp != nil {
+			ttl = time.Until(*mapping.ExpirationTimestamp)
+			if ttl > 0 {
+				s.cache.Set(ctx, cacheKey, mapping.OriginalURL, ttl)
+			}
+		} else {
+			// No expiration, cache for a long time (24 hours)
+			s.cache.Set(ctx, cacheKey, mapping.OriginalURL, 24*time.Hour)
+		}
+	}
+
 	return mapping.OriginalURL, nil
 }
 
 // DeleteExpiredURL removes an expired URL mapping
 func (s *URLServiceImpl) DeleteExpiredURL(shortCode string) {
+	ctx := context.Background()
+	cacheKey := fmt.Sprintf("url:%s", shortCode)
+
+	// Remove from cache
+	s.cache.Delete(ctx, cacheKey)
+
+	// Remove from storage
 	if err := s.storage.Delete(shortCode); err != nil {
 		// Log error but don't return it as this is cleanup
 		// In a production app, you might want to use a proper logger

@@ -9,6 +9,7 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mongodb"
+	"github.com/testcontainers/testcontainers-go/modules/redis"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -92,6 +93,35 @@ func SetupTestMongoDB(t *testing.T, config *TestMongoDBConfig) (*mongo.Client, *
 	return client, collection, cleanup
 }
 
+// SetupTestRedis creates a test Redis connection using Docker
+func SetupTestRedis(t *testing.T) (string, func()) {
+	ctx := context.Background()
+
+	// Start Redis container
+	redisContainer, err := redis.RunContainer(ctx,
+		testcontainers.WithImage("redis:7.2-alpine"),
+	)
+	if err != nil {
+		t.Fatalf("Failed to start Redis container: %v", err)
+	}
+
+	// Get connection string from container
+	connStr, err := redisContainer.ConnectionString(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get Redis connection string: %v", err)
+	}
+
+	// Cleanup function
+	cleanup := func() {
+		// Terminate the container
+		if err := redisContainer.Terminate(ctx); err != nil {
+			t.Logf("Failed to terminate Redis container: %v", err)
+		}
+	}
+
+	return connStr, cleanup
+}
+
 // CreateTestURLStorage creates a URLStorage instance for testing
 func CreateTestURLStorage(t *testing.T) (*services.URLStorage, func()) {
 	_, collection, cleanup := SetupTestMongoDB(t, nil)
@@ -108,9 +138,16 @@ func CreateTestURLStorage(t *testing.T) (*services.URLStorage, func()) {
 
 // CreateTestServiceFactory creates a service factory for testing
 func CreateTestServiceFactory(t *testing.T) (*services.ServiceFactory, func()) {
-	_, collection, cleanup := SetupTestMongoDB(t, nil)
+	_, collection, mongoCleanup := SetupTestMongoDB(t, nil)
+	redisURL, redisCleanup := SetupTestRedis(t)
 
-	factory := services.NewServiceFactory(collection)
+	factory := services.NewServiceFactory(collection, redisURL)
+
+	// Combined cleanup function
+	cleanup := func() {
+		mongoCleanup()
+		redisCleanup()
+	}
 
 	return factory, cleanup
 }

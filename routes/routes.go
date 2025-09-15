@@ -21,11 +21,14 @@ func SetupRoutes(r *gin.Engine, urlService models.URLService) {
 	// Create handlers
 	urlHandler := handlers.NewURLHandler(urlService)
 
-	// URL routes (authentication required)
+	// URL creation route (authentication required)
 	urls := r.Group("/urls")
 	urls.Use(middleware.AuthMiddleware())
 	{
 		urls.POST("", urlHandler.CreateShortURL)
-		urls.GET("/:short_code", urlHandler.RedirectToURL)
 	}
+
+	// URL redirect route (no authentication required)
+	r.GET("/urls/:short_code", urlHandler.RedirectToURL)
+
 }

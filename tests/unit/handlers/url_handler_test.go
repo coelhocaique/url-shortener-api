@@ -27,8 +27,8 @@ func (m *MockURLService) CreateShortURL(req *models.URLRequest, userID string) (
 	return args.Get(0).(*models.URLResponse), args.Error(1)
 }
 
-func (m *MockURLService) GetOriginalURL(shortCode string) (string, error) {
-	args := m.Called(shortCode)
+func (m *MockURLService) GetOriginalURL(shortCode string, useCache bool) (string, error) {
+	args := m.Called(shortCode, useCache)
 	return args.String(0), args.Error(1)
 }
 
@@ -186,7 +186,7 @@ func TestURLHandler_RedirectToURL_Success(t *testing.T) {
 	router.GET("/urls/:short_code", handler.RedirectToURL)
 
 	// Mock service response
-	mockService.On("GetOriginalURL", "abc123").Return("https://www.example.com", nil)
+	mockService.On("GetOriginalURL", "abc123", true).Return("https://www.example.com", nil)
 
 	// Make request
 	req, _ := http.NewRequest("GET", "/urls/abc123", nil)
@@ -220,7 +220,7 @@ func TestURLHandler_RedirectToURL_NotFound(t *testing.T) {
 	router.GET("/urls/:short_code", handler.RedirectToURL)
 
 	// Mock service error
-	mockService.On("GetOriginalURL", "nonexistent").Return("", models.ErrShortCodeNotFound)
+	mockService.On("GetOriginalURL", "nonexistent", true).Return("", models.ErrShortCodeNotFound)
 
 	// Make request
 	req, _ := http.NewRequest("GET", "/urls/nonexistent", nil)
@@ -255,7 +255,7 @@ func TestURLHandler_RedirectToURL_Expired(t *testing.T) {
 	router.GET("/urls/:short_code", handler.RedirectToURL)
 
 	// Mock service error
-	mockService.On("GetOriginalURL", "expired").Return("", models.ErrShortCodeExpired)
+	mockService.On("GetOriginalURL", "expired", true).Return("", models.ErrShortCodeExpired)
 
 	// Make request
 	req, _ := http.NewRequest("GET", "/urls/expired", nil)
@@ -273,5 +273,40 @@ func TestURLHandler_RedirectToURL_Expired(t *testing.T) {
 		t.Errorf("Expected error 'short code has expired', got '%s'", errorResponse["error"])
 	}
 
+	mockService.AssertExpectations(t)
+}
+
+func TestURLHandler_RedirectToURL_WithUseCacheParam(t *testing.T) {
+	// Setup
+	mockService := new(MockURLService)
+	handler := handlers.NewURLHandler(mockService)
+	router := setupTestRouter()
+
+	// Add middleware to set user_id in context
+	router.Use(func(c *gin.Context) {
+		c.Set("user_id", "user123")
+		c.Next()
+	})
+	router.GET("/urls/:short_code", handler.RedirectToURL)
+
+	// Test with use_cache=false
+	mockService.On("GetOriginalURL", "abc123", false).Return("https://www.example.com", nil)
+
+	// Make request with use_cache=false
+	req, _ := http.NewRequest("GET", "/urls/abc123?use_cache=false", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Verify response
+	if w.Code != http.StatusMovedPermanently {
+		t.Errorf("Expected status %d, got %d", http.StatusMovedPermanently, w.Code)
+	}
+
+	location := w.Header().Get("Location")
+	if location != "https://www.example.com" {
+		t.Errorf("Expected Location header %s, got %s", "https://www.example.com", location)
+	}
+
+	// Verify mock expectations
 	mockService.AssertExpectations(t)
 }

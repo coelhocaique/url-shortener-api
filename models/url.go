@@ -33,6 +33,6 @@ type URLMapping struct {
 // URLService interface defines the contract for URL operations
 type URLService interface {
 	CreateShortURL(req *URLRequest, userID string) (*URLResponse, error)
-	GetOriginalURL(shortCode string) (string, error)
+	GetOriginalURL(shortCode string, useCache bool) (string, error)
 	DeleteExpiredURL(shortCode string)
 }

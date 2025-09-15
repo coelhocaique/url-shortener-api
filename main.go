@@ -33,8 +33,8 @@ func main() {
 	db := client.Database(cfg.DatabaseName)
 	collection := db.Collection("url_mappings")
 
-	// Initialize services using factory with MongoDB collection
-	serviceFactory := services.NewServiceFactory(collection)
+	// Initialize services using factory with MongoDB collection and Redis URL
+	serviceFactory := services.NewServiceFactory(collection, cfg.RedisURL)
 	urlService := serviceFactory.CreateURLService()
 
 	// Setup Gin router

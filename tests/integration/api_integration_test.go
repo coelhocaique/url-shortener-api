@@ -35,6 +35,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, func()) {
 func generateTestToken(t *testing.T, userID string) string {
 	// Import the middleware package to use GenerateJWT
 	token, err := middleware.GenerateJWT(userID)
+	fmt.Println("token", token)
 	if err != nil {
 		t.Fatalf("Failed to generate JWT token: %v", err)
 	}
@@ -75,7 +76,7 @@ func TestAPIIntegration_CreateAndRedirectURL(t *testing.T) {
 
 	// Test 2: Redirect to the created URL
 	redirectReq, _ := http.NewRequest("GET", fmt.Sprintf("/urls/%s", response.ShortCode), nil)
-	redirectReq.Header.Set("Authorization", "Bearer "+token)
+	// No authentication required for redirects
 	redirectW := httptest.NewRecorder()
 	router.ServeHTTP(redirectW, redirectReq)
 
@@ -125,7 +126,7 @@ func TestAPIIntegration_CreateURLWithCustomAlias(t *testing.T) {
 
 	// Test redirect
 	redirectReq, _ := http.NewRequest("GET", "/urls/github", nil)
-	redirectReq.Header.Set("Authorization", "Bearer "+token)
+	// No authentication required for redirects
 	redirectW := httptest.NewRecorder()
 	router.ServeHTTP(redirectW, redirectReq)
 
@@ -290,7 +291,7 @@ func TestAPIIntegration_ExpiredURL(t *testing.T) {
 
 	// Try to access expired URL
 	redirectReq, _ := http.NewRequest("GET", "/urls/expire-test", nil)
-	redirectReq.Header.Set("Authorization", "Bearer "+token)
+	// No authentication required for redirects
 	redirectW := httptest.NewRecorder()
 	router.ServeHTTP(redirectW, redirectReq)
 
@@ -364,7 +365,7 @@ func TestAPIIntegration_URLNormalization(t *testing.T) {
 
 	// Test redirect to verify URL was normalized
 	redirectReq, _ := http.NewRequest("GET", fmt.Sprintf("/urls/%s", response.ShortCode), nil)
-	redirectReq.Header.Set("Authorization", "Bearer "+token)
+	// No authentication required for redirects
 	redirectW := httptest.NewRecorder()
 	router.ServeHTTP(redirectW, redirectReq)
 
