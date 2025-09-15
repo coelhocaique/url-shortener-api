@@ -1,4 +1,4 @@
-package services_test
+package testutils
 
 // MockCounterService is a mock implementation of CounterService
 type MockCounterService struct {

@@ -4,10 +4,11 @@ import (
 	"strings"
 	"testing"
 	"url-shortener-api/services"
+	"url-shortener-api/tests/testutils"
 )
 
 func TestShortCodeGenerator_Generate(t *testing.T) {
-	mockCounter := NewMockCounterService()
+	mockCounter := testutils.NewMockCounterService()
 	generator := services.NewShortCodeGenerator(mockCounter)
 
 	tests := []struct {
@@ -43,7 +44,7 @@ func TestShortCodeGenerator_Generate(t *testing.T) {
 }
 
 func TestShortCodeGenerator_GenerateConsistentLength(t *testing.T) {
-	mockCounter := NewMockCounterService()
+	mockCounter := testutils.NewMockCounterService()
 	generator := services.NewShortCodeGenerator(mockCounter)
 	lengths := make(map[int]int)
 
