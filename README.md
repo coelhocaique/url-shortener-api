@@ -2,7 +2,12 @@
 
 # URL Shortener API
 
-A modular URL shortener API built with Go and Gin framework, following clean architecture principles.
+A modular URL shortener API built with Go and Gin framework, following clean architecture principles. 
+
+The project implements the design below
+
+![alt text](https://github.com/coelhocaique/url-shortener-api/blob/main/design.png?raw=true)
+
 
 ## Features
 
@@ -13,36 +18,6 @@ A modular URL shortener API built with Go and Gin framework, following clean arc
 - User-specific URL management
 - Modular architecture with separation of concerns
 - Comprehensive indexing for optimal performance
-
-## Project Structure
-
-```
-url-shortener-api/
-├── config/          # Configuration management
-├── handlers/        # HTTP request handlers
-│   ├── error_handler.go     # Error handling utilities
-│   └── url_handler.go       # URL operation handlers
-├── models/          # Data structures and interfaces
-│   ├── errors.go            # Custom error types with HTTP status codes
-│   └── url.go               # URL data structures
-├── routes/          # Route definitions
-├── services/        # Business logic
-│   ├── factory.go           # Service dependency injection
-│   ├── short_code_generator.go  # Short code generation
-│   ├── url_service.go       # Main URL service
-│   ├── url_storage.go       # URL storage operations
-│   └── url_validator.go     # URL validation
-├── tests/           # Test suite
-│   ├── unit/                # Unit tests
-│   │   ├── services/        # Service layer tests
-│   │   ├── handlers/        # Handler layer tests
-│   │   └── models/          # Model layer tests
-│   └── integration/         # Integration tests
-│       └── api_integration_test.go
-├── main.go         # Application entry point
-├── run_tests.sh    # Test runner script
-└── README.md       # This file
-```
 
 ## Setup
 
