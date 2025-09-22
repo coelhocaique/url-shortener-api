@@ -4,7 +4,7 @@
 
 A modular URL shortener API built with Go and Gin framework, following clean architecture principles. 
 
-The project implements the design below
+Design:
 
 ![alt text](https://github.com/coelhocaique/url-shortener-api/blob/main/design.png?raw=true)
 
